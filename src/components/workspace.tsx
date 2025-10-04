@@ -13,6 +13,7 @@ import {
   ITabRenderValues,
 } from "flexlayout-react";
 import "flexlayout-react/style/light.css";
+import { component_map } from "../PresentifyComponents/index";
 // import "./App.css";
 
 const json: IJsonModel = {
@@ -57,7 +58,7 @@ const json: IJsonModel = {
                 enableClose: false,
                 enableMaximize: false,
                 name: "components",
-                component: "placeholder",
+                component: "tools",
               },
             ],
           },
@@ -119,7 +120,19 @@ const json: IJsonModel = {
 
 const model = Model.fromJson(json);
 
-function HyperCanvas() {
+function ToolsMenu() {
+  return (
+    <div className="h-full w-full relative">
+      <ul>
+        {Object.keys(component_map).map((key) => (
+          <li key={key}>{component_map[key].name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Workspace() {
   const nextAddIndex = useRef<number>(1);
 
   const factory = (node: TabNode) => {
@@ -131,6 +144,8 @@ function HyperCanvas() {
             {node.getName()}
           </div>
         );
+      case "tools":
+        return <ToolsMenu />;
       case "json":
         return <ModelJson model={model} />;
       default:
@@ -200,4 +215,4 @@ function ModelJson({ model }: { model: Model }) {
   return <pre>{json}</pre>;
 }
 
-export default HyperCanvas;
+export default Workspace;

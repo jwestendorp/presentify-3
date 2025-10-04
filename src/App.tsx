@@ -8,7 +8,8 @@ import {
 } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
-import HyperCanvas from "./components/hyper-canvas";
+
+import Workspace from "./components/workspace";
 
 export default function App() {
   return (
@@ -20,7 +21,7 @@ export default function App() {
       <main className="h-full w-full">
         <Authenticated>
           {/* <Content /> */}
-          <HyperCanvas />
+          <Workspace />
         </Authenticated>
         <Unauthenticated>
           <SignInForm />

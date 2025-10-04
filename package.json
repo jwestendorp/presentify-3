@@ -17,6 +17,7 @@
     "convex": "^1.27.0",
     "flexlayout-react": "^0.8.17",
     "react": "^19.0.0",
+    "react-color": "^2.19.3",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
