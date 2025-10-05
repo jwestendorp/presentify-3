@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Layout,
-  Model,
-  TabNode,
-  IJsonModel,
-  TabSetNode,
-  BorderNode,
-  ITabSetRenderValues,
-  Actions,
-  DockLocation,
-  AddIcon,
-  ITabRenderValues,
-} from "flexlayout-react";
+import { Layout, Model, TabNode, IJsonModel } from "flexlayout-react";
 import "flexlayout-react/style/light.css";
 import { component_map } from "../PresentifyComponents/index";
+import { HyperCanvas } from "./hyper-canvas";
 // import "./App.css";
 
 const json: IJsonModel = {
@@ -96,7 +85,7 @@ const json: IJsonModel = {
             enableDrag: false,
             enableRename: false,
             name: "canvas",
-            component: "placeholder",
+            component: "hyper-canvas",
           },
         ],
       },
@@ -110,7 +99,7 @@ const json: IJsonModel = {
             enableClose: false,
             enableMaximize: false,
             name: "config",
-            component: "placeholder",
+            component: "config",
           },
         ],
       },
@@ -132,8 +121,56 @@ function ToolsMenu() {
   );
 }
 
+// Grid controls component
+function GridControls({
+  size,
+  onSizeChange,
+}: {
+  size: number;
+  onSizeChange: (size: number) => void;
+}) {
+  const gridSizes = [10, 20, 30, 40, 50];
+
+  return (
+    <div className="p-4">
+      <div className="text-sm font-medium text-gray-700 mb-3">
+        Grid Size: {size}px
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {gridSizes.map((gridSize) => (
+          <button
+            key={gridSize}
+            onClick={() => onSizeChange(gridSize)}
+            className={`px-3 py-1 rounded text-sm transition-colors ${
+              size === gridSize
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            {gridSize}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConfigPanel({
+  gridSize,
+  onGridSizeChange,
+}: {
+  gridSize: number;
+  onGridSizeChange: (size: number) => void;
+}) {
+  return (
+    <div className="h-full w-full bg-white">
+      <GridControls size={gridSize} onSizeChange={onGridSizeChange} />
+    </div>
+  );
+}
+
 function Workspace() {
-  const nextAddIndex = useRef<number>(1);
+  const [gridSize, setGridSize] = useState(30);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -146,6 +183,12 @@ function Workspace() {
         );
       case "tools":
         return <ToolsMenu />;
+      case "hyper-canvas":
+        return <HyperCanvas gridSize={gridSize} />;
+      case "config":
+        return (
+          <ConfigPanel gridSize={gridSize} onGridSizeChange={setGridSize} />
+        );
       case "json":
         return <ModelJson model={model} />;
       default:
@@ -153,35 +196,8 @@ function Workspace() {
     }
   };
 
-  const onRenderTabSet = (
-    node: TabSetNode | BorderNode,
-    renderValues: ITabSetRenderValues,
-  ) => {
-    // if (node instanceof TabSetNode) {
-    //   renderValues.stickyButtons.push(
-    //     <button
-    //       key="Add"
-    //       title="Add"
-    //       className="flexlayout__tab_toolbar_button"
-    //       onClick={() => {
-    //         model.doAction(
-    //           Actions.addNode(
-    //             {
-    //               component: "placeholder",
-    //               name: "Added " + nextAddIndex.current++,
-    //             },
-    //             node.getId(),
-    //             DockLocation.CENTER,
-    //             -1,
-    //             true,
-    //           ),
-    //         );
-    //       }}
-    //     >
-    //       <AddIcon />
-    //     </button>,
-    //   );
-    // }
+  const onRenderTabSet = () => {
+    // Custom tab set rendering can be added here if needed
   };
 
   return (
@@ -194,25 +210,6 @@ function Workspace() {
       />
     </div>
   );
-}
-
-// component to show the current model json
-function ModelJson({ model }: { model: Model }) {
-  const [json, setJson] = useState<string>(
-    JSON.stringify(model.toJson(), null, "\t"),
-  );
-  const timerRef = useRef<number>(0);
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setJson(JSON.stringify(model.toJson(), null, "\t"));
-    }, 500);
-    return () => {
-      clearInterval(timerRef.current);
-    };
-  }, []);
-
-  return <pre>{json}</pre>;
 }
 
 export default Workspace;

@@ -1,203 +1,87 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Layout,
-  Model,
-  TabNode,
-  IJsonModel,
-  TabSetNode,
-  BorderNode,
-  ITabSetRenderValues,
-  Actions,
-  DockLocation,
-  AddIcon,
-  ITabRenderValues,
-} from "flexlayout-react";
-import "flexlayout-react/style/light.css";
-// import "./App.css";
+import React, { useMemo, useState } from "react";
+import { DndContext, useDraggable } from "@dnd-kit/core";
+import type { Modifier, DragEndEvent } from "@dnd-kit/core";
 
-const json: IJsonModel = {
-  global: {
-    // tabEnablePopout: true,
-    // splitterEnableHandle: true,
-    tabSetMinWidth: 130,
-    tabSetMinHeight: 100,
-    borderMinSize: 100,
-    // tabSetEnableTabScrollbar: true,
-    // borderEnableTabScrollbar: true,
-  },
-  //   borders: [
-  //     {
-  //       type: "border",
-  //       location: "bottom",
-  //       children: [
-  //         {
-  //           type: "tab",
-  //           name: "JSON",
-  //           component: "json",
-  //           enableClose: false,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  layout: {
-    type: "row",
-    weight: 100,
-    children: [
-      {
-        type: "row",
-        weight: 10,
-        children: [
-          {
-            type: "tabset",
-            enableMaximize: false,
-            weight: 10,
-            children: [
-              {
-                type: "tab",
-                enableClose: false,
-                enableMaximize: false,
-                name: "components",
-                component: "placeholder",
-              },
-            ],
-          },
-          {
-            type: "tabset",
-            enableMaximize: false,
-            weight: 10,
-            children: [
-              {
-                type: "tab",
-                enableClose: false,
-                enableMaximize: false,
-                name: "layers",
-                component: "placeholder",
-              },
-            ],
-          },
-        ],
-      },
-
-      {
-        type: "tabset",
-        enableMaximize: false,
-
-        weight: 50,
-        enableTabStrip: false,
-        enableDrop: false,
-        enableDrag: false,
-        enableClose: false,
-
-        children: [
-          {
-            type: "tab",
-            enableClose: false,
-            enableDrag: false,
-            enableRename: false,
-            name: "canvas",
-            component: "placeholder",
-          },
-        ],
-      },
-      {
-        type: "tabset",
-        enableMaximize: false,
-        weight: 10,
-        children: [
-          {
-            type: "tab",
-            enableClose: false,
-            enableMaximize: false,
-            name: "config",
-            component: "placeholder",
-          },
-        ],
-      },
-    ],
-  },
-};
-
-const model = Model.fromJson(json);
-
-function HyperCanvas() {
-  const nextAddIndex = useRef<number>(1);
-
-  const factory = (node: TabNode) => {
-    const component = node.getComponent();
-    switch (component) {
-      case "placeholder":
-        return (
-          <div className="font-sans h-full flex justify-center items-center bg-white box-border">
-            {node.getName()}
-          </div>
-        );
-      case "json":
-        return <ModelJson model={model} />;
-      default:
-        return <div>{"unknown component " + component}</div>;
-    }
+// Snap to grid modifier
+function createSnapModifier(gridSize: number): Modifier {
+  return ({ transform }) => {
+    return {
+      ...transform,
+      x: Math.round(transform.x / gridSize) * gridSize,
+      y: Math.round(transform.y / gridSize) * gridSize,
+    };
   };
+}
 
-  const onRenderTabSet = (
-    node: TabSetNode | BorderNode,
-    renderValues: ITabSetRenderValues,
-  ) => {
-    // if (node instanceof TabSetNode) {
-    //   renderValues.stickyButtons.push(
-    //     <button
-    //       key="Add"
-    //       title="Add"
-    //       className="flexlayout__tab_toolbar_button"
-    //       onClick={() => {
-    //         model.doAction(
-    //           Actions.addNode(
-    //             {
-    //               component: "placeholder",
-    //               name: "Added " + nextAddIndex.current++,
-    //             },
-    //             node.getId(),
-    //             DockLocation.CENTER,
-    //             -1,
-    //             true,
-    //           ),
-    //         );
-    //       }}
-    //     >
-    //       <AddIcon />
-    //     </button>,
-    //   );
-    // }
+// Grid background component
+function GridBackground({ size }: { size: number }) {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none "
+      style={{
+        backgroundImage: `radial-gradient(circle, #d1d5db 1.5px, transparent 1.5px)`,
+        backgroundSize: `${size}px ${size}px`,
+      }}
+    />
+  );
+}
+
+// Draggable component
+function Draggable({
+  children,
+  position,
+}: {
+  children: React.ReactNode;
+  position: { x: number; y: number };
+}) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: "draggable",
+  });
+
+  const inlineStyles: React.CSSProperties = {
+    left: position.x,
+    top: position.y,
+    transform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+      : undefined,
   };
 
   return (
-    <div className="h-full w-full relative">
-      <Layout
-        model={model}
-        factory={factory}
-        onRenderTabSet={onRenderTabSet}
-        realtimeResize={true}
-      />
+    <div
+      ref={setNodeRef}
+      className="absolute touch-none cursor-grab"
+      style={inlineStyles}
+      {...listeners}
+      {...attributes}
+    >
+      {children}
     </div>
   );
 }
 
-// component to show the current model json
-function ModelJson({ model }: { model: Model }) {
-  const [json, setJson] = useState<string>(
-    JSON.stringify(model.toJson(), null, "\t"),
+export function HyperCanvas({ gridSize }: { gridSize: number }) {
+  const [position, setPosition] = useState({ x: 30, y: 30 });
+  const snapToGrid = useMemo(() => createSnapModifier(gridSize), [gridSize]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { delta } = event;
+    setPosition((prev) => ({
+      x: prev.x + delta.x,
+      y: prev.y + delta.y,
+    }));
+  };
+
+  return (
+    <div className="h-full w-full relative bg-white overflow-hidden">
+      <GridBackground size={gridSize} />
+
+      <DndContext modifiers={[snapToGrid]} onDragEnd={handleDragEnd}>
+        <Draggable position={position}>
+          <div className="w-60 h-16 border-2 border-blue-500 rounded-lg bg-blue-50 flex items-center justify-center text-sm font-semibold text-blue-800">
+            Drag me (snaps to {gridSize}px grid)
+          </div>
+        </Draggable>
+      </DndContext>
+    </div>
   );
-  const timerRef = useRef<number>(0);
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setJson(JSON.stringify(model.toJson(), null, "\t"));
-    }, 500);
-    return () => {
-      clearInterval(timerRef.current);
-    };
-  }, []);
-
-  return <pre>{json}</pre>;
 }
-
-export default HyperCanvas;

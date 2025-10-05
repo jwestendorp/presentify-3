@@ -21,6 +21,7 @@ export default function App() {
       <main className="h-full w-full">
         <Authenticated>
           {/* <Content /> */}
+
           <Workspace />
         </Authenticated>
         <Unauthenticated>
