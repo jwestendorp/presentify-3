@@ -3,6 +3,8 @@ import { Layout, Model, TabNode, IJsonModel } from "flexlayout-react";
 import "flexlayout-react/style/light.css";
 import { component_map } from "../PresentifyComponents/index";
 import { HyperCanvas } from "./hyper-canvas";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 // import "./App.css";
 
 const json: IJsonModel = {
@@ -109,12 +111,30 @@ const json: IJsonModel = {
 
 const model = Model.fromJson(json);
 
-function ToolsMenu() {
+function ToolsMenu({ canvasId }: { canvasId: string }) {
+  const addCanvasItem = useMutation(api.canvases.addCanvasItem);
+  const handleAddCanvasItem = (key: string) => {
+    addCanvasItem({
+      canvasId,
+      canvasItem: {
+        x: Math.random() * 1080,
+        y: Math.random() * 1920,
+        width: 100,
+        height: 100,
+        color: "hsl(" + Math.random() * 360 + ", 100%, 50%)",
+        type: key,
+      },
+    });
+  };
   return (
     <div className="h-full w-full relative">
       <ul>
         {Object.keys(component_map).map((key) => (
-          <li key={key}>{component_map[key].name}</li>
+          <li key={key}>
+            <button onClick={() => handleAddCanvasItem(key)}>
+              {component_map[key].name}
+            </button>
+          </li>
         ))}
       </ul>
     </div>
@@ -169,7 +189,7 @@ function ConfigPanel({
   );
 }
 
-function Workspace() {
+function Workspace({ canvasId }: { canvasId: string }) {
   const [gridSize, setGridSize] = useState(30);
 
   const factory = (node: TabNode) => {
@@ -182,9 +202,9 @@ function Workspace() {
           </div>
         );
       case "tools":
-        return <ToolsMenu />;
+        return <ToolsMenu canvasId={canvasId} />;
       case "hyper-canvas":
-        return <HyperCanvas gridSize={gridSize} />;
+        return <HyperCanvas gridSize={gridSize} canvasId={canvasId} />;
       case "config":
         return (
           <ConfigPanel gridSize={gridSize} onGridSizeChange={setGridSize} />

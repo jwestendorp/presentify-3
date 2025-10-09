@@ -1,17 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { DndContext, useDraggable } from "@dnd-kit/core";
 import type { Modifier, DragEndEvent } from "@dnd-kit/core";
-
-// Snap to grid modifier
-function createSnapModifier(gridSize: number): Modifier {
-  return ({ transform }) => {
-    return {
-      ...transform,
-      x: Math.round(transform.x / gridSize) * gridSize,
-      y: Math.round(transform.y / gridSize) * gridSize,
-    };
-  };
-}
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { component_map } from "../PresentifyComponents/index";
 
 // Grid background component
 function GridBackground({ size }: { size: number }) {
@@ -59,29 +51,42 @@ function Draggable({
   );
 }
 
-export function HyperCanvas({ gridSize }: { gridSize: number }) {
-  const [position, setPosition] = useState({ x: 30, y: 30 });
-  const snapToGrid = useMemo(() => createSnapModifier(gridSize), [gridSize]);
+export function HyperCanvas({
+  gridSize,
+  canvasId,
+}: {
+  gridSize: number;
+  canvasId: string;
+}) {
+  const canvas = useQuery(api.canvases.getCanvas, { canvasId });
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { delta } = event;
-    setPosition((prev) => ({
-      x: prev.x + delta.x,
-      y: prev.y + delta.y,
-    }));
-  };
+  console.log("canvas", canvas);
 
   return (
     <div className="h-full w-full relative bg-white overflow-hidden">
       <GridBackground size={gridSize} />
-
-      <DndContext modifiers={[snapToGrid]} onDragEnd={handleDragEnd}>
-        <Draggable position={position}>
-          <div className="w-60 h-16 border-2 border-blue-500 rounded-lg bg-blue-50 flex items-center justify-center text-sm font-semibold text-blue-800">
-            Drag me (snaps to {gridSize}px grid)
-          </div>
-        </Draggable>
-      </DndContext>
+      <div className="absolute inset-0">
+        {canvas?.canvasItems.map((item) => {
+          const Component = component_map[item.type].Component;
+          return (
+            <div
+              key={item.id}
+              className={`absolute `}
+              style={{
+                top: `${item.y}px`,
+                left: `${item.x}px`,
+                width: `${item.width}px`,
+                height: `${item.height}px`,
+              }}
+            >
+              <Component
+                key={item.id}
+                options={{ backgroundColor: item.color }}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

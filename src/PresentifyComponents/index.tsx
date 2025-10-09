@@ -22,22 +22,22 @@ type Tool = {
 };
 
 export const component_map: Record<string, Tool> = {
-  "dralletje/artboard": {
-    icon: <i className="fas fa-chess-board" />,
-    name: "Canvas",
-    Component: () => {
-      return (
-        <div
-          style={{
-            backgroundColor: "rgb(255, 255, 255)",
-            boxShadow: "0px 3px 20px black",
-            width: "100%",
-            height: "100%",
-          }}
-        />
-      );
-    },
-  },
+  // "dralletje/artboard": {
+  //   icon: <i className="fas fa-chess-board" />,
+  //   name: "Canvas",
+  //   Component: () => {
+  //     return (
+  //       <div
+  //         style={{
+  //           backgroundColor: "rgb(255, 255, 255)",
+  //           boxShadow: "0px 3px 20px black",
+  //           width: "100%",
+  //           height: "100%",
+  //         }}
+  //       />
+  //     );
+  //   },
+  // },
   // "dralletje/image": {
   //   icon: <i className="fas fa-image" />,
   //   name: "Image",
@@ -64,31 +64,31 @@ export const component_map: Record<string, Tool> = {
   //     );
   //   },
   // },
-  "dralletje/webview": {
-    icon: (
-      <WebviewIconFrame>
-        <i className="fas fa-globe" />
-      </WebviewIconFrame>
-    ),
-    name: "Webview",
-    default_options: {
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1",
-    },
-    Component: ({ options }) => {
-      return (
-        <iframe
-          title="iFrame"
-          // width={size.width}
-          // height={size.height}
-          style={{ height: "100%", width: "100%" }}
-          src={options.url || "https://www.youtube.com/embed/dQw4w9WgXcQ"}
-          frameborder="0"
-          allow="autoplay; encrypted-media"
-          allowfullscreen
-        />
-      );
-    },
-  },
+  // "dralletje/webview": {
+  //   icon: (
+  //     <WebviewIconFrame>
+  //       <i className="fas fa-globe" />
+  //     </WebviewIconFrame>
+  //   ),
+  //   name: "Webview",
+  //   default_options: {
+  //     url: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1",
+  //   },
+  //   Component: ({ options }) => {
+  //     return (
+  //       <iframe
+  //         title="iFrame"
+  //         // width={size.width}
+  //         // height={size.height}
+  //         style={{ height: "100%", width: "100%" }}
+  //         src={options.url || "https://www.youtube.com/embed/dQw4w9WgXcQ"}
+  //         frameborder="0"
+  //         allow="autoplay; encrypted-media"
+  //         allowfullscreen
+  //       />
+  //     );
+  //   },
+  // },
   "dralletje/rectangle": {
     icon: (
       <div
