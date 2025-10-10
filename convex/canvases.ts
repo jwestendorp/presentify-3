@@ -82,6 +82,30 @@ export const addCanvasItem = mutation({
   },
 });
 
+// The mutation to move an object
+export const moveCanvasItem = mutation({
+  args: {
+    canvasId: v.id("canvases"),
+    canvasItemId: v.string(),
+    x: v.number(),
+    y: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { canvasId, canvasItemId, x, y } = args;
+    const canvas = await ctx.db.get(args.canvasId);
+    if (!canvas) {
+      throw new Error("Canvas not found");
+    }
+    const updatedCanvasItems = canvas.canvasItems.map((item) => {
+      if (item.id === canvasItemId) {
+        return { ...item, x, y };
+      }
+      return item;
+    });
+    await ctx.db.patch(canvasId, { canvasItems: updatedCanvasItems });
+  },
+});
+
 // export const updateCirclePosition = mutation({
 //   args: {
 //     canvasId: v.id("canvases"),

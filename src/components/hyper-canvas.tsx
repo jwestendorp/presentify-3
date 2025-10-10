@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
-import { DndContext, useDraggable } from "@dnd-kit/core";
-import type { Modifier, DragEndEvent } from "@dnd-kit/core";
-import { useQuery } from "convex/react";
+import type { Id, Doc } from "../../convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { component_map } from "../PresentifyComponents/index";
+import { DragState, FullGestureState, useDrag } from "@use-gesture/react";
+import type { ReactDOMAttributes } from "@use-gesture/react/dist/declarations/src/types";
 
 // Grid background component
 function GridBackground({ size }: { size: number }) {
@@ -18,39 +18,6 @@ function GridBackground({ size }: { size: number }) {
   );
 }
 
-// Draggable component
-function Draggable({
-  children,
-  position,
-}: {
-  children: React.ReactNode;
-  position: { x: number; y: number };
-}) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: "draggable",
-  });
-
-  const inlineStyles: React.CSSProperties = {
-    left: position.x,
-    top: position.y,
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-      : undefined,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      className="absolute touch-none cursor-grab"
-      style={inlineStyles}
-      {...listeners}
-      {...attributes}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function HyperCanvas({
   gridSize,
   canvasId,
@@ -58,9 +25,67 @@ export function HyperCanvas({
   gridSize: number;
   canvasId: string;
 }) {
-  const canvas = useQuery(api.canvases.getCanvas, { canvasId });
+  const convexCanvasId = canvasId as Id<"canvases">;
+  const canvas = useQuery(api.canvases.getCanvas, { canvasId: convexCanvasId });
 
-  console.log("canvas", canvas);
+  // We update the item position in the db
+  const moveCanvasItem = useMutation(api.canvases.moveCanvasItem)
+    // Update the local state through optimistic update, for better responsiveness
+    .withOptimisticUpdate((localStore, args) => {
+      const { canvasId, canvasItemId, x, y } = args;
+      const currentLocalCanvas = localStore.getQuery(api.canvases.getCanvas, {
+        canvasId,
+      });
+      if (currentLocalCanvas !== undefined) {
+        const updatedCanvasItems = currentLocalCanvas.canvasItems.map(
+          (item) => {
+            if (item.id === canvasItemId) {
+              return { ...item, x, y };
+            }
+            return item;
+          },
+        );
+
+        const updatedCanvas = {
+          ...currentLocalCanvas,
+          canvasItems: updatedCanvasItems,
+        } as Doc<"canvases">;
+
+        localStore.setQuery(
+          api.canvases.getCanvas,
+          { canvasId },
+          updatedCanvas,
+        );
+      }
+    });
+
+  const dragBindings = useDrag((state) => {
+    const { args, down, memo, movement } = state;
+    // if (!down) return memo;
+    if (!down) return;
+
+    const [id] = args as [string];
+
+    // On the first frame of a drag, capture the starting position
+    const item = canvas?.canvasItems.find((i) => i.id === id);
+    const startPosition = (memo as [number, number] | undefined) ?? [
+      item?.x ?? 0,
+      item?.y ?? 0,
+    ];
+
+    const [mx, my] = movement;
+
+    moveCanvasItem({
+      canvasId: convexCanvasId,
+      canvasItemId: id,
+      x: startPosition[0] + mx,
+      y: startPosition[1] + my,
+    });
+
+    return startPosition;
+  }) as (itemId: string) => ReactDOMAttributes;
+
+  // console.log("canvas", canvas);
 
   return (
     <div className="h-full w-full relative bg-white overflow-hidden">
@@ -71,6 +96,7 @@ export function HyperCanvas({
           return (
             <div
               key={item.id}
+              {...dragBindings(item.id)}
               className={`absolute `}
               style={{
                 top: `${item.y}px`,

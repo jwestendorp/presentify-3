@@ -117,8 +117,8 @@ function ToolsMenu({ canvasId }: { canvasId: string }) {
     addCanvasItem({
       canvasId,
       canvasItem: {
-        x: Math.random() * 1080,
-        y: Math.random() * 1920,
+        x: Math.random() * 250,
+        y: Math.random() * 250,
         width: 100,
         height: 100,
         color: "hsl(" + Math.random() * 360 + ", 100%, 50%)",
