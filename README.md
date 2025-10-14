@@ -1,3 +1,9 @@
+Just trying out Convex db.
+
+> This project is entirely unrelated to [Presentify2](https://github.com/Klokcoin/Presentify2)
+
+---
+
 # Welcome to your Convex + React (Vite) + Clerkapp
 
 This is a [Convex](https://convex.dev/) project created with [`npm create convex`](https://www.npmjs.com/package/create-convex).
