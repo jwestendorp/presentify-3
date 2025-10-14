@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
 import { Layout, Model, TabNode, IJsonModel } from "flexlayout-react";
 import "flexlayout-react/style/light.css";
 import { component_map } from "../PresentifyComponents/index";
 import { HyperCanvas } from "./hyper-canvas";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
+import { setSnapToGridEnabled } from "../../convex/canvases";
 // import "./App.css";
 
-const json: IJsonModel = {
+const workspaceLayoutConfig: IJsonModel = {
   global: {
     // tabEnablePopout: true,
     // splitterEnableHandle: true,
@@ -63,7 +64,7 @@ const json: IJsonModel = {
                 enableClose: false,
                 enableMaximize: false,
                 name: "layers",
-                component: "placeholder",
+                component: "layers",
               },
             ],
           },
@@ -109,9 +110,9 @@ const json: IJsonModel = {
   },
 };
 
-const model = Model.fromJson(json);
+const model = Model.fromJson(workspaceLayoutConfig);
 
-function ToolsMenu({ canvasId }: { canvasId: string }) {
+function ToolsMenu({ canvasId }: { canvasId: Id<"canvases"> }) {
   const addCanvasItem = useMutation(api.canvases.addCanvasItem);
   const handleAddCanvasItem = (key: string) => {
     addCanvasItem({
@@ -141,57 +142,129 @@ function ToolsMenu({ canvasId }: { canvasId: string }) {
   );
 }
 
-// Grid controls component
-function GridControls({
-  size,
-  onSizeChange,
-}: {
-  size: number;
-  onSizeChange: (size: number) => void;
-}) {
-  const gridSizes = [10, 20, 30, 40, 50];
+function LayersMenu({ canvasId }: { canvasId: Id<"canvases"> }) {
+  const canvas = useQuery(api.canvases.getCanvas, { canvasId: canvasId });
+  const layers = canvas?.canvasItems;
+  const selectedItemIds = useQuery(api.canvases.getCurrentUserSelections, {
+    canvasId: canvasId,
+  });
+  const removeCanvasItem = useMutation(api.canvases.removeCanvasItem);
+
+  const handleDeleteLayer = (layerId: string) => {
+    removeCanvasItem({
+      canvasId: canvasId,
+      canvasItemId: layerId,
+    });
+  };
 
   return (
-    <div className="p-4">
-      <div className="text-sm font-medium text-gray-700 mb-3">
-        Grid Size: {size}px
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {gridSizes.map((gridSize) => (
-          <button
-            key={gridSize}
-            onClick={() => onSizeChange(gridSize)}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              size === gridSize
-                ? "bg-blue-500 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            {gridSize}
-          </button>
-        ))}
-      </div>
+    <div className="h-full w-full relative">
+      <ul>
+        {layers?.map((layer) => {
+          const isSelected = selectedItemIds?.includes(layer.id);
+          return (
+            <li
+              key={layer.id}
+              className={`flex flex-row justify-between items-center px-2 py-1 ${
+                isSelected ? "bg-blue-200 font-semibold" : ""
+              }`}
+            >
+              {layer.type}{" "}
+              <button onClick={() => handleDeleteLayer(layer.id)}>x</button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
 
-function ConfigPanel({
-  gridSize,
-  onGridSizeChange,
-}: {
-  gridSize: number;
-  onGridSizeChange: (size: number) => void;
-}) {
+function ConfigMenu({ canvasId }: { canvasId: Id<"canvases"> }) {
+  const canvas = useQuery(api.canvases.getCanvas, { canvasId: canvasId });
+  const setGridSize = useMutation(api.canvases.setGridSize);
+  const setSnapToGridEnabled = useMutation(api.canvases.setSnapToGridEnabled);
+  const selectedIds = useQuery(api.canvases.getCurrentUserSelections, {
+    canvasId: canvasId,
+  });
+  const selectedItems = canvas?.canvasItems.filter((item) =>
+    selectedIds?.includes(item.id),
+  );
+
+  console.log("selections", selectedItems);
+
+  const handleGridSizeChange = (value: string) => {
+    setGridSize({
+      canvasId: canvasId,
+      gridSize: parseInt(value),
+    });
+  };
+
+  const handleSnapToGridChange = (value: boolean) => {
+    setSnapToGridEnabled({
+      canvasId: canvasId,
+      snapToGridEnabled: value,
+    });
+  };
+
   return (
-    <div className="h-full w-full bg-white">
-      <GridControls size={gridSize} onSizeChange={onGridSizeChange} />
+    <div className="h-full w-full bg-white flex flex-col gap-6">
+      <ul className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold">Canvas Config</h3>
+        <li className="flex flex-row gap-2">
+          <label>Snap to Grid</label>
+          <input
+            type="checkbox"
+            checked={canvas?.snapToGridEnabled}
+            onChange={(e) => handleSnapToGridChange(e.target.checked)}
+          />
+        </li>
+        <li className="flex flex-row gap-2">
+          <label>Grid Size</label>
+          <input
+            type="number"
+            className="border-2 border-slate-200 rounded-md px-2 box-border max-w-16"
+            value={canvas?.gridSize}
+            onChange={(e) => handleGridSizeChange(e.target.value)}
+            step={5}
+          />
+        </li>
+      </ul>
+      {selectedItems?.length && selectedItems.length > 0 && (
+        <>
+          <hr />
+
+          <ul>
+            {selectedItems?.map((selection) => (
+              <li
+                key={selection.id}
+                className="px-2 py-1 border-b border-slate-200"
+              >
+                <h3 className="text-sm font-semibold">{selection.type}</h3>
+                <ul>
+                  {Object.entries(selection).map(([key, value]) => (
+                    <li
+                      key={key}
+                      className="grid grid-cols-[minmax(auto,_50px)_minmax(0,_1fr)] gap-2 border-t border-slate-200"
+                    >
+                      <span className="col-span-1 overflow-hidden text-ellipsis w-full">
+                        {key}:
+                      </span>
+                      <span className="col-span-1 overflow-hidden text-ellipsis w-full">
+                        {value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
 
-function Workspace({ canvasId }: { canvasId: string }) {
-  const [gridSize, setGridSize] = useState(30);
-
+function Workspace({ canvasId }: { canvasId: Id<"canvases"> }) {
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     switch (component) {
@@ -203,14 +276,13 @@ function Workspace({ canvasId }: { canvasId: string }) {
         );
       case "tools":
         return <ToolsMenu canvasId={canvasId} />;
+      case "layers":
+        return <LayersMenu canvasId={canvasId} />;
       case "hyper-canvas":
-        return <HyperCanvas gridSize={gridSize} canvasId={canvasId} />;
+        return <HyperCanvas canvasId={canvasId} />;
       case "config":
-        return (
-          <ConfigPanel gridSize={gridSize} onGridSizeChange={setGridSize} />
-        );
-      case "json":
-        return <ModelJson model={model} />;
+        return <ConfigMenu canvasId={canvasId} />;
+
       default:
         return <div>{"unknown component " + component}</div>;
     }

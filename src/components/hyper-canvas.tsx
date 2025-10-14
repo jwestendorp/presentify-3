@@ -2,14 +2,14 @@ import type { Id, Doc } from "../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { component_map } from "../PresentifyComponents/index";
-import { DragState, FullGestureState, useDrag } from "@use-gesture/react";
+import { useDrag } from "@use-gesture/react";
 import type { ReactDOMAttributes } from "@use-gesture/react/dist/declarations/src/types";
 
 // Grid background component
 function GridBackground({ size }: { size: number }) {
   return (
     <div
-      className="absolute inset-0 pointer-events-none "
+      className="absolute inset-0 pointer-events-none bg-gray-100"
       style={{
         backgroundImage: `radial-gradient(circle, #d1d5db 1.5px, transparent 1.5px)`,
         backgroundSize: `${size}px ${size}px`,
@@ -18,15 +18,20 @@ function GridBackground({ size }: { size: number }) {
   );
 }
 
-export function HyperCanvas({
-  gridSize,
-  canvasId,
-}: {
-  gridSize: number;
-  canvasId: string;
-}) {
+export function HyperCanvas({ canvasId }: { canvasId: string }) {
   const convexCanvasId = canvasId as Id<"canvases">;
   const canvas = useQuery(api.canvases.getCanvas, { canvasId: convexCanvasId });
+  const gridSize = canvas?.gridSize ?? 20;
+
+  // Selection
+  const selectCanvasItem = useMutation(api.canvases.selectCanvasItem);
+
+  const handleMouseDown = (itemId: string) => {
+    selectCanvasItem({
+      canvasId: convexCanvasId,
+      canvasItemId: itemId,
+    });
+  };
 
   // We update the item position in the db
   const moveCanvasItem = useMutation(api.canvases.moveCanvasItem)
@@ -36,7 +41,7 @@ export function HyperCanvas({
       const currentLocalCanvas = localStore.getQuery(api.canvases.getCanvas, {
         canvasId,
       });
-      if (currentLocalCanvas !== undefined) {
+      if (currentLocalCanvas !== undefined && currentLocalCanvas !== null) {
         const updatedCanvasItems = currentLocalCanvas.canvasItems.map(
           (item) => {
             if (item.id === canvasItemId) {
@@ -75,11 +80,22 @@ export function HyperCanvas({
 
     const [mx, my] = movement;
 
+    // Calculate new position
+    let x = startPosition[0] + mx;
+    let y = startPosition[1] + my;
+
+    // Apply snap to grid if enabled
+    if (canvas?.snapToGridEnabled) {
+      const gridSize = canvas.gridSize;
+      x = Math.round(x / gridSize) * gridSize;
+      y = Math.round(y / gridSize) * gridSize;
+    }
+
     moveCanvasItem({
       canvasId: convexCanvasId,
       canvasItemId: id,
-      x: startPosition[0] + mx,
-      y: startPosition[1] + my,
+      x,
+      y,
     });
 
     return startPosition;
@@ -97,7 +113,8 @@ export function HyperCanvas({
             <div
               key={item.id}
               {...dragBindings(item.id)}
-              className={`absolute `}
+              onMouseDown={() => handleMouseDown(item.id)}
+              className={`absolute cursor-pointer`}
               style={{
                 top: `${item.y}px`,
                 left: `${item.x}px`,

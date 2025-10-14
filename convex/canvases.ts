@@ -17,7 +17,10 @@ export const createCanvas = mutation({
     const canvasId = await ctx.db.insert("canvases", {
       //   name: args.name,
       createdBy: userId,
+      gridSize: 20,
       canvasItems: [],
+      snapToGridEnabled: true,
+      selections: [],
     });
 
     return { canvasId };
@@ -28,6 +31,28 @@ export const getCanvas = query({
   args: { canvasId: v.id("canvases") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.canvasId);
+  },
+});
+
+export const setSnapToGridEnabled = mutation({
+  args: {
+    canvasId: v.id("canvases"),
+    snapToGridEnabled: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.canvasId, {
+      snapToGridEnabled: args.snapToGridEnabled,
+    });
+  },
+});
+
+export const setGridSize = mutation({
+  args: {
+    canvasId: v.id("canvases"),
+    gridSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.canvasId, { gridSize: args.gridSize });
   },
 });
 
@@ -82,6 +107,24 @@ export const addCanvasItem = mutation({
   },
 });
 
+export const removeCanvasItem = mutation({
+  args: {
+    canvasId: v.id("canvases"),
+    canvasItemId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { canvasId, canvasItemId } = args;
+    const canvas = await ctx.db.get(canvasId);
+    if (!canvas) {
+      throw new Error("Canvas not found");
+    }
+    const updatedCanvasItems = canvas.canvasItems.filter(
+      (item) => item.id !== canvasItemId,
+    );
+    await ctx.db.patch(canvasId, { canvasItems: updatedCanvasItems });
+  },
+});
+
 // The mutation to move an object
 export const moveCanvasItem = mutation({
   args: {
@@ -96,6 +139,7 @@ export const moveCanvasItem = mutation({
     if (!canvas) {
       throw new Error("Canvas not found");
     }
+
     const updatedCanvasItems = canvas.canvasItems.map((item) => {
       if (item.id === canvasItemId) {
         return { ...item, x, y };
@@ -106,29 +150,80 @@ export const moveCanvasItem = mutation({
   },
 });
 
-// export const updateCirclePosition = mutation({
-//   args: {
-//     canvasId: v.id("canvases"),
-//     // circleId: v.string(),
-//     x: v.number(),
-//     y: v.number(),
-//   },
-//   handler: async (ctx, args) => {
-//     const canvas = await ctx.db
-//       .query("canvases")
-//       .withIndex("by_id", (q) => q.eq("_id", args.canvasId))
-//       .unique();
+// Selection mutations
+export const selectCanvasItem = mutation({
+  args: {
+    canvasId: v.id("canvases"),
+    canvasItemId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { canvasId, canvasItemId } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject;
 
-//     if (!canvas) {
-//       throw new Error("Canvas not found");
-//     }
+    const canvas = await ctx.db.get(canvasId);
+    if (!canvas) {
+      throw new Error("Canvas not found");
+    }
 
-//     // const id = uuidv4();
+    // Remove any existing selections for this user
+    const updatedSelections = canvas.selections.filter(
+      (s) => s.userId !== userId,
+    );
 
-//     const updatedCanvasItems = [...canvas.canvasItems, { ...args }];
+    // Add the new selection
+    updatedSelections.push({ userId, canvasItemId });
 
-//     await ctx.db.patch(canvas._id, {
-//       canvasItems: updatedCanvasItems,
-//     });
-//   },
-// });
+    await ctx.db.patch(canvasId, { selections: updatedSelections });
+  },
+});
+
+export const deselectCanvasItem = mutation({
+  args: {
+    canvasId: v.id("canvases"),
+    canvasItemId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { canvasId, canvasItemId } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject;
+
+    const canvas = await ctx.db.get(canvasId);
+    if (!canvas) {
+      throw new Error("Canvas not found");
+    }
+
+    // Remove the selection for this user and item
+    const updatedSelections = canvas.selections.filter(
+      (s) => !(s.userId === userId && s.canvasItemId === canvasItemId),
+    );
+
+    await ctx.db.patch(canvasId, { selections: updatedSelections });
+  },
+});
+
+export const getCurrentUserSelections = query({
+  args: { canvasId: v.id("canvases") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject;
+
+    const canvas = await ctx.db.get(args.canvasId);
+    if (!canvas) {
+      throw new Error("Canvas not found");
+    }
+
+    return canvas.selections
+      .filter((s) => s.userId === userId)
+      .map((s) => s.canvasItemId);
+  },
+});

@@ -15,6 +15,8 @@ export default defineSchema({
     // createdBy: v.id("users"),
     createdBy: v.string(),
     // shareId: v.string(),
+    gridSize: v.number(),
+    snapToGridEnabled: v.boolean(),
     canvasItems: v.array(
       v.object({
         id: v.string(),
@@ -24,6 +26,12 @@ export default defineSchema({
         height: v.number(),
         color: v.string(),
         type: v.string(),
+      }),
+    ),
+    selections: v.array(
+      v.object({
+        userId: v.string(),
+        canvasItemId: v.string(),
       }),
     ),
   }),
